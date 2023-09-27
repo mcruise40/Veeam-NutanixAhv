@@ -34,10 +34,12 @@ function Get-VeeamNutanixAhvProtectionStatus {
         foreach($item in $PSBoundParameters.keys){ $params = "$($params) -$($item) $($PSBoundParameters[$item])" }
         if ($PSCmdlet.ShouldProcess($params.Trim())){
             try{
-                $RestUriProtectedVms = "https://$ProxyIp/api/v4/dashboard/protectedVmsInCluster/"
+                $resultLimit = 9999
+
+                $RestUriProtectedVms = "https://$ProxyIp/api/v4/dashboard/protectedVmsInCluster?offset=0&limit=$resultLimit"
                 $ProtectedVms   = (Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriProtectedVms -Authentication Bearer -Token $ApiKey).results
 
-                $RestUriUnprotectedVms = "https://$ProxyIp/api/v4/dashboard/unprotectedVmsInCluster/"
+                $RestUriUnprotectedVms = "https://$ProxyIp/api/v4/dashboard/unprotectedVmsInCluster?offset=0&limit=$resultLimit"
                 $UnprotectedVms = (Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriUnprotectedVms -Authentication Bearer -Token $ApiKey).results
 
                 if ($VmId -in $ProtectedVms.id) {
