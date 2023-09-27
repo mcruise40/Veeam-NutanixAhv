@@ -87,7 +87,7 @@ function Update-VeeamNutanixAhvJobs {
         [String]$VeeamAhvProxyCred = 'VeeamAhvProxy',
 
         [Parameter(
-            Mandatory = $false,
+            Mandatory = $true,
             HelpMessage = 'Enter name for Prism Central Protection Policy category'
         )]
         [String]$ProtectionPolicyCategoryName,
@@ -96,7 +96,7 @@ function Update-VeeamNutanixAhvJobs {
             Mandatory = $false,
             HelpMessage = 'Enter a prefix to attend to the job name in Veeam Proxy for Nutanix AHV'
         )]
-        [String]$JobNamePrefix = '-PP-PRISM-'
+        [String]$JobNamePrefix
     )
     #endregion
 
@@ -107,6 +107,7 @@ function Update-VeeamNutanixAhvJobs {
     . .\Get-VeeamAhvProxyToken.ps1
     . .\Get-VeeamNutanixAhvProtectionStatus
     . .\Add-VmToVeeamNutanixAhvJob.ps1
+    . .\Update-VeeamNutanixAhv.ps1
 
     #endregion
 
@@ -117,8 +118,22 @@ function Update-VeeamNutanixAhvJobs {
     $ProxyMappingList = Import-Csv -Path $ProxyMappingFilePath -Delimiter ';'
 
     # Get credentials from vault
-    $CredPrismCentral  = Get-Secret -Vault $SecretStoreCred -Name $PrismCentralCred
-    $CredVeeamAhvProxy = Get-Secret -Vault $SecretStoreCred -Name $VeeamAhvProxyCred
+    if ($SecretStoreCred) {
+        if ($PrismCentralCred) {
+            $CredPrismCentral  = Get-Secret -Vault $SecretStoreCred -Name $PrismCentralCred
+        }
+        if ($VeeamAhvProxyCred) {
+            $CredVeeamAhvProxy = Get-Secret -Vault $SecretStoreCred -Name $VeeamAhvProxyCred
+        }
+    }
+
+    # Check if credentials could be read from Secret Store
+    if ($CredPrismCentral -and $CredVeeamAhvProxy) {
+        Write-Verbose 'Credentials from Secret Store received'
+    }
+    else {
+        Throw 'No credentials from Secret Store received'
+    }
 
     # Retrieve all VMs with additional infos from Prism Central
     $NutanixVmInfo = Get-NutanixVmInfo -Ip $PrismCentralIp -Username $CredPrismCentral.UserName -Password $CredPrismCentral.Password -ProtectionPolicyCategoryName $ProtectionPolicyCategoryName
@@ -152,15 +167,20 @@ function Update-VeeamNutanixAhvJobs {
         if ($ApiKey) {
             $_.ProtectionStatus = Get-VeeamNutanixAhvProtectionStatus -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -ClusterId $_.ClusterUuid -VmId $_.VmUuid
             if ($_.ProtectionStatus -eq $false) {
+                $VmName = $_.Name
                 $JobName = $_.ClusterName.ToUpper() + $JobNamePrefix + $_.DataProtectionCategory
-                Write-Host $JobName
+                Write-Verbose "Add VM $VmName to $JobName"
                 Add-VmToVeeamNutanixAhvJob -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -JobName $JobName -ClusterId $_.ClusterUuid -VmId $_.VmUuid -Verbose
+                # Update-VeeamNutanixAhv -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -ClusterId $_.ClusterUuid
             }
         }
         else {
             throw 'The API key to access the Veeam proxy is empty.'
         }
     }
+
+    # Logout
+    
 
     #endregion
 }
