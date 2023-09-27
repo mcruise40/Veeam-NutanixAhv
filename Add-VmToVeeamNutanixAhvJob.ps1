@@ -58,6 +58,8 @@ function Add-VmToVeeamNutanixAhvJob {
                 if ($VmId -NotContains $JobSettings.vmIds) {
                     $JobSettings.vmIds += $VmId
                 }
+                # Need to remove .CustomScript.FileName because of an error message for the re-import
+                $JobSettings.customScript.PSObject.Properties.Remove('fileName')
                 $JobSettings_json = ConvertTo-Json($JobSettings) -Depth 10
 
                 $ret = Invoke-WebRequest -Method 'PUT' -ContentType 'application/json' -SkipCertificateCheck -Uri $RestUriJobSettings -Authentication Bearer -Token $ApiKey -Body $JobSettings_json
