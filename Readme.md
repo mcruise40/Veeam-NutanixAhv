@@ -5,7 +5,7 @@ The script will update jobs in Veeam Proxy for Nutanix AHV based on Categories d
 
 ## Installation
 
-You need to install SecretManagement / SecretStore to save passwords
+For Credentials SecretManageYou need to install SecretManagement / SecretStore to save passwords
 
 ```Powershell
 Install-Module -Name Microsoft.PowerShell.SecretManagement, Microsoft.PowerShell.SecretStore
