@@ -24,7 +24,7 @@ function Update-VeeamNutanixAhvJobs {
     #>
 
     #region param
-    [CmdlletBinding()]
+    [CmdletBinding()]
     param(
         [Parameter(
             Mandatory = $true,
@@ -48,7 +48,7 @@ function Update-VeeamNutanixAhvJobs {
             Mandatory = $false,
             HelpMessage = 'Enter name for credentials to authenticate to Prism Central'
         )]
-        [SecureString]$PrismCentralCred = 'PrismCentral',
+        [String]$PrismCentralCred = 'PrismCentral',
 
         [Parameter(
             Mandatory = $true,
@@ -78,28 +78,25 @@ function Update-VeeamNutanixAhvJobs {
             Mandatory = $false,
             HelpMessage = 'Enter Microsoft Secret Store Name'
         )]
-        [SecureString]$SecretStoreCred,
+        [String]$SecretStoreCred,
 
         [Parameter(
             Mandatory = $false,
             HelpMessage = 'Enter name for credentials to authenticate to Veeam Proxy for Nutanix AHV'
         )]
-        [SecureString]$VeeamAhvProxyCred = 'VeeamAhvProxy',
+        [String]$VeeamAhvProxyCred = 'VeeamAhvProxy',
 
         [Parameter(
             Mandatory = $false,
             HelpMessage = 'Enter name for Prism Central Protection Policy category'
         )]
-        [SecureString]$ProtectionPolicyCategoryName,
+        [String]$ProtectionPolicyCategoryName,
 
         [Parameter(
             Mandatory = $false,
             HelpMessage = 'Enter a prefix to attend to the job name in Veeam Proxy for Nutanix AHV'
         )]
-        [SecureString]$JobNamePrefix = '-PP-PRISM-'
-
-
-
+        [String]$JobNamePrefix = '-PP-PRISM-'
     )
     #endregion
 
