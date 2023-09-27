@@ -45,19 +45,27 @@ function Add-VmToVeeamNutanixAhvJob {
                     if ($item.name -eq $JobName -and $item.mode -eq 'Backup') {
                         Write-Verbose 'Found Veeam job on proxy'
                         $RestUriJobSettings = 'https://' + $ProxyIp + '/api/v4/jobs/' + $item.id + '/settings'
+                        # $RestUriJobDisable  = 'https://' + $ProxyIp + '/api/v4/jobs/' + $item.id + '/disable'
+                        # $RestUriJobEnable   = 'https://' + $ProxyIp + '/api/v4/jobs/' + $item.id + '/enable'
                     }
                 }
 
                 # Cancel if no job was found
                 if (-not $RestUriJobSettings) {
-                    throw 'No Veeam Job found on proxy.'
+                    throw 'No Veeam job found on proxy.'
                 }
                 
                 $JobSettings = Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriJobSettings -Authentication Bearer -Token $ApiKey
-                Write-Host "Add VM with ID $VmId"
-                if ($VmId -NotContains $JobSettings.vmIds) {
+                if (-not $VmId -in $JobSettings.vmIds) {
+                    Write-Verbose "Add VM with ID $VmId"
                     $JobSettings.vmIds += $VmId
                 }
+                else {
+                    Write-Verbose "VM is already included in the job"
+                }
+                # Remove multiple VM IDs
+                $JobSettings.vmIds = $JobSettings.vmIds | Select-Object -Unique
+                
                 # Need to remove .CustomScript.FileName because of an error message for the re-import
                 $JobSettings.customScript.PSObject.Properties.Remove('fileName')
                 $JobSettings_json = ConvertTo-Json($JobSettings) -Depth 10
@@ -66,6 +74,11 @@ function Add-VmToVeeamNutanixAhvJob {
                 if($ret.StatusCode -ne 204) {
                     throw 'There is something wrong'
                 }
+
+                # Disable and re-enable job
+                # Invoke-WebRequest -Method 'POST' -SkipCertificateCheck -Uri $RestUriJobDisable -Authentication Bearer -Token $ApiKey
+                # Invoke-WebRequest -Method 'POST' -SkipCertificateCheck -Uri $RestUriJobEnable -Authentication Bearer -Token $ApiKey
+                
                 
             }catch{
                 Write-Warning $('ScriptName:', $($_.InvocationInfo.ScriptName), 'LineNumber:', $($_.InvocationInfo.ScriptLineNumber), 'Message:', $($_.Exception.Message) -Join ' ')
