@@ -1,20 +1,25 @@
-# Product Name
-> Veeam for Nutanix AHV integration with Nutanix Prism Central
+# Veeam-NutanixAhv
+> Powershell script to use categories from Nutanix Prism Central with Veeam for Nutanix AHV
 
-The script will update jobs in Veeam Proxy for Nutanix AHV based on Categories defined in Prism Central.
+The script will update jobs in Veeam Proxy for Nutanix AHV based on categories defined in Prism Central.
 
 ## Installation
 
-For Credentials SecretManageYou need to install SecretManagement / SecretStore to save passwords
+### Credentials
+For Credentials you can use SecretManagement / SecretStore to store passwords:
+- https://learn.microsoft.com/en-us/powershell/utility-modules/secretmanagement/how-to/using-secrets-in-automation?view=ps-modules
 
 ```Powershell
-Install-Module -Name Microsoft.PowerShell.SecretManagement, Microsoft.PowerShell.SecretStore
+Install-Module -Name Microsoft.PowerShell.SecretStore -Repository PSGallery -Force
+Install-Module -Name Microsoft.PowerShell.SecretManagement -Repository PSGallery -Force
+Import-Module Microsoft.PowerShell.SecretStore
+Import-Module Microsoft.PowerShell.SecretManagement
 ```
 
 
 ## Usage example
 
-Update-VeeamNutanixAhvJobs 
+Update-VeeamNutanixAhvJobs -PrismCentralIp '10.30.0.5' -PrismCentralCred 'PrismCentral' -ProxyMappingFilePath '.\ProxyMapping.csv' -VeeamAhvProxyCred 'VeeamNutanixAhv' -SecretStoreCred 'SecretStore'
 
 ## Release History
 
