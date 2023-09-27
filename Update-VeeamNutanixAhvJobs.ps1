@@ -22,7 +22,6 @@
      Date created: 2023/08/31
 
     .EXAMPLE 
-    .\Script.ps1 -PrismCentralIp '10.0.200.100' -PrismCentralApiKey 'sfdih34sdauighs4rag5he==' -VeeamProxyApiKey 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkOTgyMTc1NS0wODM2LTQ1ZjctYmU3ZS03YTA4MzA0ODQ4ZTQiLCJuYW1laWQiOiIxMDAwIiwidW5pcXVlX25hbWUiOiJhZG1pbiIsInNpZCI6IjM4YWNhZGIyLWM5ZTUtNDMyNC1hYjUxLTAzYzA0YWFjZjUwOCIsIm5iZiI6MTY5MzQ5NTE3MCwiZXhwIjoxNjkzNDk2OTcwLCJpYXQiOjE2OTM0OTUxNzAsImlzcyI6Imlzc3VlciIsImF1ZCI6ImFwaS9kZWZhdWx0LzYzZTgwODEyLTE2ZDYtNDFmMi05NGZhLTVlNTU0NmIzMmJkMSJ9.McGboYzUyDRa8T67LEQHiR6QBa1GU4xOLKGt_gBd0YQ'
 #>
 
 #region param
@@ -32,7 +31,25 @@ param(
         Mandatory = $true,
         HelpMessage = 'Enter Nutanix Prism Central IP or hostname'
     )]
-    [String]$PrismCentralIp = '',
+    [String]$PrismCentralIp,
+
+    [Parameter(
+        Mandatory = $false,
+        HelpMessage = 'Enter username to authenticate to Prism Central'
+    )]
+    [String]$PrismCentralUsername = 'admin',
+
+    [Parameter(
+        Mandatory = $false,
+        HelpMessage = 'Enter password to authenticate to Prism Central'
+    )]
+    [SecureString]$PrismCentralPassword,
+
+    [Parameter(
+        Mandatory = $false,
+        HelpMessage = 'Enter name for credentials to authenticate to Prism Central'
+    )]
+    [SecureString]$PrismCentralCred = 'PrismCentral',
 
     [Parameter(
         Mandatory = $true,
@@ -41,20 +58,47 @@ param(
     [String]$ProxyMappingFilePath = '.\ProxyMapping.csv',
     
     [Parameter(
-        Mandatory = $true,
+        Mandatory = $false,
         HelpMessage = 'Enter API key created in Veeam Proxy for Nutanix AHV'
     )]
-    [String]$VeeamAhvProxyApiKey = ''
+    [String]$VeeamAhvProxyApiKey,
+
+    [Parameter(
+        Mandatory = $false,
+        HelpMessage = 'Enter username to authenticate to Veeam Proxy for Nutanix AHV'
+    )]
+    [String]$VeeamAhvProxyUsername = 'admin',
+
+    [Parameter(
+        Mandatory = $false,
+        HelpMessage = 'Enter password to authenticate to Veeam Proxy for Nutanix AHV'
+    )]
+    [SecureString]$VeeamAhvProxyPassword,
+
+    [Parameter(
+        Mandatory = $false,
+        HelpMessage = 'Enter Microsoft Secret Store Name'
+    )]
+    [SecureString]$SecretStoreCred,
+
+    [Parameter(
+        Mandatory = $false,
+        HelpMessage = 'Enter name for credentials to authenticate to Veeam Proxy for Nutanix AHV'
+    )]
+    [SecureString]$VeeamAhvProxyCred = 'VeeamAhvProxy'
+
+
+
 )
 #endregion
 
 #region functions
 
-function Get-NutanixClusters {}
-
-function Get-VmCategories {}
-
-function Get-VeeamNutanixAhvJobs {}
+# Import functions
+. .\Get-NutanixVmInfo.ps1
+. .\Get-VeeamAhvProxyToken.ps1
+. .\Get-VeeamNutanixAhvProtectionStatus
+. .\Add-VmToVeeamNutanixAhvJob.ps1
 
 #endregion
 
@@ -62,17 +106,11 @@ function Get-VeeamNutanixAhvJobs {}
 #region main
 
 # Import Nutanix cluster to Veeam AHV proxy mapping list | could be replaced by identifying the Nutanix clusters via the Veeam Proxy REST API
-$ProxyMappingList = Import-Csv -Path '.\ProxyMapping.csv' -Delimiter ';'
+$ProxyMappingList = Import-Csv -Path $ProxyMappingFilePath -Delimiter ';'
 
 # Get credentials from vault
-$CredPrismCentral  = Get-Secret -Vault GRBR-NX-V -Name PrismCentral
-$CredVeeamAhvProxy = Get-Secret -Vault GRBR-NX-V -Name VeeamAhvProxy
-
-# Import functions
-. .\Get-NutanixVmInfo.ps1
-. .\Get-VeeamAhvProxyToken.ps1
-. .\Get-VeeamNutanixAhvProtectionStatus
-. .\Add-VmToVeeamNutanixAhvJob.ps1
+$CredPrismCentral  = Get-Secret -Vault $SecretStoreCred -Name $PrismCentralCred
+$CredVeeamAhvProxy = Get-Secret -Vault $SecretStoreCred -Name $VeeamAhvProxyCred
 
 # Retrieve all VMs with additional infos from Prism Central
 $NutanixVmInfo = Get-NutanixVmInfo -Ip $PrismCentralIp -Username $CredPrismCentral.UserName -Password $CredPrismCentral.Password -ProtectionPolicyCategoryName 'PD-GRBR'
