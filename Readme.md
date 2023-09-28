@@ -8,8 +8,8 @@ The script will update jobs in Veeam Proxy for Nutanix AHV based on categories d
 ### Categories in Prism Central
 Create a new category in Prism Central with names for the backup jobs as values. This allows VMs to be mapped to different SLAs.
 
- ### Proxy mapping list
- create a CSV with columns cluster name and Veeam Proxy IP. An example is avaiable in the repository.
+### Proxy mapping list
+Create a CSV with columns cluster name and Veeam Proxy IP. An example is avaiable in the repository.
 
 ### Credentials
 For Credentials you can use SecretManagement / SecretStore to store passwords:
