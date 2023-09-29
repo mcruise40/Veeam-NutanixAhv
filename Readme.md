@@ -53,7 +53,7 @@ Set-SecretStoreConfiguration @storeConfiguration
 
 ## Usage example
 
-Update-VeeamNutanixAhvJobs -PrismCentralIp '10.30.0.5' -PrismCentralCred 'PrismCentral' -ProxyMappingFilePath '.\ProxyMapping.csv' -VeeamAhvProxyCred 'VeeamNutanixAhv' -SecretStoreCred 'SecretStore' -ProtectionPolicyCategoryName 'DataProtection' -JobNamePrefix '-PC-'
+Update-VeeamNutanixAhvJobs -PrismCentralIp '10.30.0.5' -PrismCentralCred 'PrismCentral' -ProxyMappingFilePath '.\ProxyMapping.csv' -VeeamAhvProxyCred 'VeeamNutanixAhv' -SecretStoreCred 'SecretStore' -ProtectionPolicyCategoryName 'DataProtection' -JobNamePrefix '-PC-' -MailConfigPath '.\mailconf.json'
 
 ## Release History
 
