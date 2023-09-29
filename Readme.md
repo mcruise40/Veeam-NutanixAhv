@@ -22,12 +22,34 @@ Import-Module Microsoft.PowerShell.SecretStore
 Import-Module Microsoft.PowerShell.SecretManagement
 ```
 
-Create a new vault
+Set password
+```
+$credential = Get-Credential -UserName 'SecureStore'
+
+PowerShell credential request
+Enter your credentials.
+Password for user SecureStore: **************
+```
+export it to file
 ```PowerShell
-register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault
+$securePasswordPath = '.\passwd.xml'
+$credential.Password |  Export-Clixml -Path $securePasswordPath
 ```
 
+Create a new vault and set configuration
+```PowerShell
+Register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault
+$password = Import-CliXml -Path $securePasswordPath
 
+$storeConfiguration = @{
+    Authentication = 'Password'
+    PasswordTimeout = 3600 # 1 hour
+    Interaction = 'None'
+    Password = $password
+    Confirm = $false
+}
+Set-SecretStoreConfiguration @storeConfiguration
+```
 
 ## Usage example
 
