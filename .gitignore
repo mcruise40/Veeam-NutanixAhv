@@ -1,3 +1,5 @@
+.gitignore
+
 .vscode
 #.vscode/*
 #!.vscode/settings.json
@@ -13,4 +15,7 @@
 *.vsix
 
 GRBR_ProxyMapping.csv
+GRBR_mailconf.json
+C1_ProxyMapping.csv
 Definitions.txt
+passwd_C1-NX-V.xml

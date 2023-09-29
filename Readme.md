@@ -7,14 +7,20 @@ The script will update jobs in Veeam Proxy for Nutanix AHV based on categories d
 
 ### Credentials
 For Credentials you can use SecretManagement / SecretStore to store passwords:
-- https://learn.microsoft.com/en-us/powershell/utility-modules/secretmanagement/how-to/using-secrets-in-automation?view=ps-modules
+- https://learn.microsoft.com/en-us/powershell/utility-modules/secretmanagement/how-to/using-secrets-in-automation?view=ps-modules 
 
-```Powershell
+```PowerShell
 Install-Module -Name Microsoft.PowerShell.SecretStore -Repository PSGallery -Force
 Install-Module -Name Microsoft.PowerShell.SecretManagement -Repository PSGallery -Force
 Import-Module Microsoft.PowerShell.SecretStore
 Import-Module Microsoft.PowerShell.SecretManagement
 ```
+
+Create a new vault
+```PowerShell
+register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault
+```
+
 
 
 ## Usage example
