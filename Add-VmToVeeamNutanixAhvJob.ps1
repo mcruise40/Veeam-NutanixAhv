@@ -59,20 +59,23 @@ function Add-VmToVeeamNutanixAhvJob {
                 if (-not $VmId -in $JobSettings.vmIds) {
                     Write-Verbose "Add VM with ID $VmId"
                     $JobSettings.vmIds += $VmId
+                    
+                    # Remove multiple VM IDs
+                    $JobSettings.vmIds = $JobSettings.vmIds | Select-Object -Unique
+                    
+                    # Need to remove .CustomScript.FileName because of an error message for the re-import
+                    $JobSettings.customScript.PSObject.Properties.Remove('fileName')
+                    $JobSettings_json = ConvertTo-Json($JobSettings) -Depth 10
+    
+                    $ret = Invoke-WebRequest -Method 'PUT' -ContentType 'application/json' -SkipCertificateCheck -Uri $RestUriJobSettings -Authentication Bearer -Token $ApiKey -Body $JobSettings_json
+
+                    if($ret.StatusCode -ne 204) {
+                        throw 'There is something wrong'
+                    }
                 }
                 else {
                     Write-Verbose "VM is already included in the job"
-                }
-                # Remove multiple VM IDs
-                $JobSettings.vmIds = $JobSettings.vmIds | Select-Object -Unique
-                
-                # Need to remove .CustomScript.FileName because of an error message for the re-import
-                $JobSettings.customScript.PSObject.Properties.Remove('fileName')
-                $JobSettings_json = ConvertTo-Json($JobSettings) -Depth 10
-
-                $ret = Invoke-WebRequest -Method 'PUT' -ContentType 'application/json' -SkipCertificateCheck -Uri $RestUriJobSettings -Authentication Bearer -Token $ApiKey -Body $JobSettings_json
-                if($ret.StatusCode -ne 204) {
-                    throw 'There is something wrong'
+                    $ret = $null
                 }
 
                 # Disable and re-enable job

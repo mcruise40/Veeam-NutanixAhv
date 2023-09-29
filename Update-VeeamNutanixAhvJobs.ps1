@@ -9,14 +9,53 @@ function Update-VeeamNutanixAhvJobs {
         .PARAMETER PrismCentralIp
         IP or hostname of Nutanix Prism Central
 
-        .PARAMETER PrismCentralApiKey
-        API key to access Prism Central
+        .PARAMETER PrismCentralUsername
+        Username to access Prism Central
 
-        .PARAMETER VeeamAhvProxylIp
-        IP or hostname of Nutanix Prism Central
-        
-        .PARAMETER VeeamAhvProxyApiKey
-        API key to access Veeam Proxy for Nutanix AHV
+        .PARAMETER PrismCentralPassword
+        Password to access Prism Central
+
+        .PARAMETER PrismCentralCred
+        Secret name for credentials to access Prism Central
+
+        .PARAMETER ProxyMappingFilePath
+        Path to file with Nutanix Cluster to Veeam AHV Proxy mapping list (as CSV)
+
+        .PARAMETER VeeamAhvProxyUsername
+        Username to access Veeam Proxies
+
+        .PARAMETER VeeamAhvProxyPassword
+        Password to access Veeam Proxies
+
+        .PARAMETER VeeamAhvProxyCred
+        Secret name for credentials to access Veeam Proxies
+
+        .PARAMETER SecretStoreName
+        Name of PowerShell SecretStore which holds the credentials for Prism Central, Veeam AHV Proxies and SMTP server
+
+        .PARAMETER SecretStoreXmlPath
+        Path to the password file to access Secret Store
+
+        .PARAMETER ProtectionPolicyCategoryName
+        Name of the Category used for Veeam backup job assignment
+
+        .PARAMETER SecretStoreXmlPath
+        Path to the password file to access Secret Store
+
+        .PARAMETER MailNotification
+        Enable mail notification about unprotected VMs
+
+        .PARAMETER MailAuth
+        Enable authentication to SMTP server
+
+        .PARAMETER MailStylePath
+        Path to HTML file with style sheet information for mail notification
+
+        .PARAMETER excludedVmsPrefix
+        Prefix for VM Names to exclude from check and assignment
+
+        .PARAMETER JobNamePrefix
+        Prefix for the Veeam backup job name. The job name always starts with the cluster name
     
         .NOTES
 
@@ -73,18 +112,18 @@ function Update-VeeamNutanixAhvJobs {
             HelpMessage = 'Enter password to authenticate to Veeam Proxy for Nutanix AHV'
         )]
         [SecureString]$VeeamAhvProxyPassword,
-
-        [Parameter(
-            Mandatory = $false,
-            HelpMessage = 'Enter Microsoft Secret Store Name'
-        )]
-        [String]$SecretStoreName,
-
+        
         [Parameter(
             Mandatory = $false,
             HelpMessage = 'Enter name for credentials to authenticate to Veeam Proxy for Nutanix AHV'
         )]
         [String]$VeeamAhvProxyCred = 'VeeamAhvProxy',
+            
+        [Parameter(
+            Mandatory = $false,
+            HelpMessage = 'Enter Microsoft Secret Store Name'
+        )]
+        [String]$SecretStoreName,
 
         [Parameter(
             Mandatory = $false,
@@ -105,10 +144,33 @@ function Update-VeeamNutanixAhvJobs {
         [String]$MailConfigPath = '.\mailconf.json',
 
         [Parameter(
+            Mandatory = $false
+        )]
+        [String]$MailNotification = $false,
+
+        [Parameter(
+            Mandatory = $false
+        )]
+        [String]$MailAuth = $false,
+
+        [Parameter(
+            Mandatory = $false,
+            HelpMessage = 'Enter name for credentials to authenticate to SMTP server'
+        )]
+        [String]$MailAuthCred = 'SmtpServer',
+        
+
+        [Parameter(
             Mandatory = $false,
             HelpMessage = 'Enter path to mail stalye HTML'
         )]
         [String]$MailStylePath = '.\mailstyle.html',
+
+        [Parameter(
+            Mandatory = $false,
+            HelpMessage = 'Enter a prefix for VMs excluded from the check'
+        )]
+        [String]$excludedVmsPrefix,
 
         [Parameter(
             Mandatory = $false,
@@ -158,14 +220,68 @@ function Update-VeeamNutanixAhvJobs {
     # Retrieve all VMs with additional infos from Prism Central
     $NutanixVmInfo = Get-NutanixVmInfo -Ip $PrismCentralIp -Username $CredPrismCentral.UserName -Password $CredPrismCentral.Password -ProtectionPolicyCategoryName $ProtectionPolicyCategoryName
 
-    # Show VMs without Data Protection Category applied
-    $VmsMissingCategory = $NutanixVmInfo | Where-Object {$null -eq $_.DataProtectionCategory} | Format-Table -AutoSize
+    # Exclude VMs starts with string or match regex pattern
+    if ($excludedVmsPrefix -or $excludedVmsRegex) {
+        # Change prefix to regex pattern
+        if ($excludedVmsPrefix) {
+            $excludedVmsRegex = '(?i)^' + $excludedVmsPrefix
+        }
+        $excludedVms = ($NutanixVmInfo | Where-Object {$_.Name -match $excludedVmsRegex}).Name
+        foreach ($Vm in $excludedVms) {
+            Write-Verbose "Excluded VM: $VM"
+        }
+        # Filter hash table
+        $NutanixVmInfo = $NutanixVmInfo | Where-Object {$_.Name -notmatch $excludedVmsRegex}
+    }
 
+    # Get VMs without data protection category applied
+    $VmsMissingCategory = $NutanixVmInfo | Where-Object {$null -eq $_.DataProtectionCategory}
+
+    # Send mail notification with VMs without data protection category applied
+    if ($MailNotification) {
+        # Get mail config from file
+        $MailConfig = @(Get-Content -Path $MailConfigPath | ConvertFrom-Json)
+        [String]$MailStyle = Get-Content -Path $MailStylePath
+        [String]$MailBody = $VmsMissingCategory | Select-Object ClusterName,Name | Sort-Object ClusterName,Name | ConvertTo-Html -PreContent $MailStyle
+        
+        # Define mail parameters
+        $MailParams = @{
+            SmtpServer = $MailConfig.SmtpServer
+            Port = $MailConfig.Port
+            To = $MailConfig.To
+            From = $MailConfig.From
+            Body = $MailBody
+            Subject = $MailConfig.Subject
+            BodyAsHTML = $true
+            ErrorAction = "Stop"
+            UseSsl = $MailConfig.UseSSL
+        }
+
+        # Check if mail authentication is needed
+        if ($MailAuth) {
+            if ($SecretStoreName -and $MailAuthCred) {
+                $CredMailAuth = Get-Secret -Vault $SecretStoreCred -Name $MailAuthCred
+            }
+            elseif ($MailConfig.Username -and $MailConfig.Password) {
+                $secMailAuthPassword = $MailConfig.Password | ConvertTo-SecureString
+                $CredMailAuth = New-Object System.Management.Automation.PSCredential($MailConfig.Username, $secMailAuthPassword)
+            }
     
-    $MailConfig = @([PSCustomObject](Get-Content -Path $MailConfigPath | ConvertFrom-Json))
-
-    [string]$MailBody = $VmsMissingCategory | ConvertTo-Html -PreContent $MailStylePath
-    Send-MailMessage -SMTPServer $MailConfig.SmtpServer -Port $MailConfig.Port -To $MailConfig.To -From $MailConfig.From -Body $MailBody -Subject $MailConfig.Subject -BodyAsHTML -ErrorAction Stop
+            if ($CredMailAuth) {
+                Write-Verbose 'Credentials from Secret Store or config file received'
+            }
+            else {
+                Throw 'No credentials from Secret Store or config file received'
+            }
+    
+            # Send mail with authentication
+            Send-MailMessage @MailParams -Credential $CredMailAuth -Verbose
+        }
+        else {
+            # Send mail without authentication
+            Send-MailMessage @MailParams
+        }
+    }
 
     # Filter VMs with data protection category applied
     $VmsToProcess = $NutanixVmInfo | Where-Object {$null -ne $_.DataProtectionCategory}
@@ -191,9 +307,9 @@ function Update-VeeamNutanixAhvJobs {
             }
         }
         if ($ApiKey) {
-            $_.ProtectionStatus = Get-VeeamNutanixAhvProtectionStatus -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -ClusterId $_.ClusterUuid -VmId $_.VmUuid
+            $VmName = $_.Name
+            $_.ProtectionStatus = Get-VeeamNutanixAhvProtectionStatus -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -ClusterId $_.ClusterUuid -VmName $VmName -VmId $_.VmUuid
             if ($_.ProtectionStatus -eq $false) {
-                $VmName = $_.Name
                 $JobName = $_.ClusterName + '-' + $JobNamePrefix + $_.DataProtectionCategory
                 Write-Verbose "Add VM $VmName to $JobName"
                 Add-VmToVeeamNutanixAhvJob -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -JobName $JobName -ClusterId $_.ClusterUuid -VmId $_.VmUuid -Verbose

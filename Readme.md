@@ -51,6 +51,15 @@ $storeConfiguration = @{
 Set-SecretStoreConfiguration @storeConfiguration
 ```
 
+Unlock Secret Store and create credentials
+```PowerShell
+Unlock-SecretStore -Password $password
+
+Set-Secret -Name 'PrismCentral' -Secret (Get-Credential ps-automation-veeam)
+Set-Secret -Name 'VeeamAhvProxy' -Secret (Get-Credential admin)
+Set-Secret -Name 'SmtpServer' -Secret (Get-Credential someone@somewhere.com)
+```
+
 ## Usage example
 
 Update-VeeamNutanixAhvJobs -PrismCentralIp '10.30.0.5' -PrismCentralCred 'PrismCentral' -ProxyMappingFilePath '.\ProxyMapping.csv' -VeeamAhvProxyCred 'VeeamNutanixAhv' -SecretStoreCred 'SecretStore' -ProtectionPolicyCategoryName 'DataProtection' -JobNamePrefix '-PC-' -MailConfigPath '.\mailconf.json'

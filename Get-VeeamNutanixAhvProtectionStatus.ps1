@@ -18,6 +18,7 @@ function Get-VeeamNutanixAhvProtectionStatus {
         [Parameter(Mandatory=$true)][String] $ProxyIp,
         [Parameter(Mandatory=$true)][SecureString] $ApiKey,
         [Parameter(Mandatory=$true)][String] $ClusterId,
+        [Parameter(Mandatory=$true)][String] $VmName,
         [Parameter(Mandatory=$true)][String] $VmId
         #endregion
     )
@@ -43,11 +44,11 @@ function Get-VeeamNutanixAhvProtectionStatus {
                 $UnprotectedVms = (Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriUnprotectedVms -Authentication Bearer -Token $ApiKey).results
 
                 if ($VmId -in $ProtectedVms.id) {
-                    Write-Verbose 'VM is already marked as protected'
+                    Write-Verbose "VM $VmName is already marked as protected"
                     $ret = $true
                 }
                 elseif ($VmId -in $UnprotectedVms.id) {
-                    Write-Verbose 'VM is not marked as proteceted'
+                    Write-Verbose "VM $VmName is not marked as proteceted"
                     $ret = $false
                 }
                 else {

@@ -17,5 +17,7 @@
 GRBR_ProxyMapping.csv
 GRBR_mailconf.json
 C1_ProxyMapping.csv
+kruesi_mailconf.json
 Definitions.txt
 passwd_C1-NX-V.xml
+*.log
