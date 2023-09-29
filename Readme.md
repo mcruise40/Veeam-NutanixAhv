@@ -5,6 +5,12 @@ The script will update jobs in Veeam Proxy for Nutanix AHV based on categories d
 
 ## Installation
 
+### Categories in Prism Central
+Create a new category in Prism Central with names for the backup jobs as values. This allows VMs to be mapped to different SLAs.
+
+### Proxy mapping list
+Create a CSV with columns cluster name and Veeam Proxy IP. An example is avaiable in the repository.
+
 ### Credentials
 For Credentials you can use SecretManagement / SecretStore to store passwords:
 - https://learn.microsoft.com/en-us/powershell/utility-modules/secretmanagement/how-to/using-secrets-in-automation?view=ps-modules 
@@ -25,7 +31,7 @@ register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretSt
 
 ## Usage example
 
-Update-VeeamNutanixAhvJobs -PrismCentralIp '10.30.0.5' -PrismCentralCred 'PrismCentral' -ProxyMappingFilePath '.\ProxyMapping.csv' -VeeamAhvProxyCred 'VeeamNutanixAhv' -SecretStoreCred 'SecretStore'
+Update-VeeamNutanixAhvJobs -PrismCentralIp '10.30.0.5' -PrismCentralCred 'PrismCentral' -ProxyMappingFilePath '.\ProxyMapping.csv' -VeeamAhvProxyCred 'VeeamNutanixAhv' -SecretStoreCred 'SecretStore' -ProtectionPolicyCategoryName 'DataProtection' -JobNamePrefix '-PC-'
 
 ## Release History
 
@@ -37,13 +43,15 @@ Update-VeeamNutanixAhvJobs -PrismCentralIp '10.30.0.5' -PrismCentralCred 'PrismC
 
 ## Meta
 
-Andy Kruesi // Ceruno AG
+Andy Kruesi // Ceruno
 
 Distributed under the GPLv3 license
 
 [https://github.com/mcruise40](https://github.com/mcruise40)
 
 ## Contributing
+
+Feel free to contribute to this project.
 
 1. Fork it (<https://github.com/mcruise40/Veeam-NutanixAhv/fork>)
 2. Create your feature branch (`git checkout -b feature/fooBar`)
