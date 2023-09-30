@@ -1,5 +1,5 @@
-# Veeam-NutanixAhv
-> Powershell script to use categories from Nutanix Prism Central with Veeam for Nutanix AHV
+# Veeam for Nutanix AHV to work with Prsim Central categories
+> Powershell script to use categories from Nutanix Prism Central to assign VMs to backup jobs in Veeam for Nutanix AHV
 
 The script will update jobs in Veeam Proxy for Nutanix AHV based on categories defined in Prism Central.
 
@@ -7,6 +7,11 @@ The script will update jobs in Veeam Proxy for Nutanix AHV based on categories d
 
 ### Categories in Prism Central
 Create a new category in Prism Central with names for the backup jobs as values. This allows VMs to be mapped to different SLAs.
+
+### Backup jobs
+Create backup jobs in Veeam Proxy with the schema {{Nutanix ClusterName}}-{{PC category value}}.
+If needed, it's poosible to define an additonal custom name between the cluster name and the category value.
+Keep in mind that the name is case sensitive.
 
 ### Proxy mapping list
 Create a CSV with columns cluster name and Veeam Proxy IP. An example is avaiable in the repository.
