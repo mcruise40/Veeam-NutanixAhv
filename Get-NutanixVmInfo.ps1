@@ -74,7 +74,7 @@ function Get-NutanixVmInfo {
                             VeeamAhvProxyIp         = $null
                             DataProtectionCategory  = $vm.metadata.categories.$ProtectionPolicyCategoryName
                             ProtectionStatus        = $null
-
+                            ActionStatus            = $null
                         }
                     }
                 }

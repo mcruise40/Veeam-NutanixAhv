@@ -1,7 +1,7 @@
 function Get-VeeamNutanixAhvProtectionStatus {
     <#
     .SYNOPSIS
-        Retrieve jobs from a Veeam proxy for Nutanix AHV.
+        Retrieve jobs from a Veeam proxy for Nutanix AHV and check if VM is already protected in any backup job
     .DESCRIPTION
         A longer description of the function, its purpose, common use cases, etc.
     .PARAMETER InputObject
@@ -17,7 +17,6 @@ function Get-VeeamNutanixAhvProtectionStatus {
         #region parameter, to add a new parameter, copy and paste the Parameter-region
         [Parameter(Mandatory=$true)][String] $ProxyIp,
         [Parameter(Mandatory=$true)][SecureString] $ApiKey,
-        [Parameter(Mandatory=$true)][String] $ClusterId,
         [Parameter(Mandatory=$true)][String] $VmName,
         [Parameter(Mandatory=$true)][String] $VmId
         #endregion
@@ -35,24 +34,27 @@ function Get-VeeamNutanixAhvProtectionStatus {
         foreach($item in $PSBoundParameters.keys){ $params = "$($params) -$($item) $($PSBoundParameters[$item])" }
         if ($PSCmdlet.ShouldProcess($params.Trim())){
             try{
+
                 $resultLimit = 9999
+                $vmFoundInJob = $false
 
-                $RestUriProtectedVms = "https://$ProxyIp/api/v4/dashboard/protectedVmsInCluster?offset=0&limit=$resultLimit"
-                $ProtectedVms   = (Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriProtectedVms -Authentication Bearer -Token $ApiKey).results
+                # Check if VM is already listet in Veeam backup job
+                $RestUriJobSettings = "https://$ProxyIp/api/v4/jobs?limit=$resultLimit"
+                $JobSettings = (Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriJobSettings -Authentication Bearer -Token $ApiKey).results
 
-                $RestUriUnprotectedVms = "https://$ProxyIp/api/v4/dashboard/unprotectedVmsInCluster?offset=0&limit=$resultLimit"
-                $UnprotectedVms = (Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriUnprotectedVms -Authentication Bearer -Token $ApiKey).results
-
-                if ($VmId -in $ProtectedVms.id) {
-                    Write-Verbose "VM $VmName is already marked as protected"
-                    $ret = $true
+                $JobSettings.settings | ForEach-Object {
+                    if ($VmId -in $_.vmIds) {
+                        $JobName = $_.name
+                        Write-Verbose "VM $VmName is already protected in backup job $JobName"
+                        $vmFoundInJob = $true
+                        $ret = $_.id
+                        break
+                    }
                 }
-                elseif ($VmId -in $UnprotectedVms.id) {
-                    Write-Verbose "VM $VmName is not marked as proteceted"
+                    
+                if (-not $vmFoundInJob) {
+                    Write-Verbose "VM $VmName was not found in any backup job"
                     $ret = $false
-                }
-                else {
-                    Throw 'VM not found!'
                 }
 
             }catch{

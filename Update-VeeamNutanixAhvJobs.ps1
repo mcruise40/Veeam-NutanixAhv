@@ -146,12 +146,12 @@ function Update-VeeamNutanixAhvJobs {
         [Parameter(
             Mandatory = $false
         )]
-        [String]$MailNotification = $false,
+        [Switch]$MailNotification = $false,
 
         [Parameter(
             Mandatory = $false
         )]
-        [String]$MailAuth = $false,
+        [Switch]$MailAuth = $false,
 
         [Parameter(
             Mandatory = $false,
@@ -171,6 +171,12 @@ function Update-VeeamNutanixAhvJobs {
             HelpMessage = 'Enter a prefix for VMs excluded from the check'
         )]
         [String]$excludedVmsPrefix,
+        
+        [Parameter(
+            Mandatory = $false,
+            HelpMessage = 'Ignore the protection status for a VM received from Veeam proxy'
+        )]
+        [Switch]$ignoreProtectionStatus = $false,
 
         [Parameter(
             Mandatory = $false,
@@ -191,6 +197,15 @@ function Update-VeeamNutanixAhvJobs {
 
     #endregion
 
+    #region globalsettings
+    $ErrorActionPreference='Stop'
+    #endregion
+
+    #region modules
+    Write-Verbose "Import modules"
+    Import-Module -Name 'Microsoft.PowerShell.SecretManagement' -Force -Verbose:$false
+    Import-Module -Name 'Microsoft.PowerShell.SecretStore' -Force -Verbose:$false
+    #endregion
 
     #region main
 
@@ -236,6 +251,7 @@ function Update-VeeamNutanixAhvJobs {
 
     # Get VMs without data protection category applied
     $VmsMissingCategory = $NutanixVmInfo | Where-Object {$null -eq $_.DataProtectionCategory}
+    $VmsMissingCategory | Sort-Object ClusterName,Name | Format-Table -AutoSize
 
     # Send mail notification with VMs without data protection category applied
     if ($MailNotification) {
@@ -251,7 +267,7 @@ function Update-VeeamNutanixAhvJobs {
             To = $MailConfig.To
             From = $MailConfig.From
             Body = $MailBody
-            Subject = $MailConfig.Subject
+            Subject = "Found VMs without backup tag"
             BodyAsHTML = $true
             ErrorAction = "Stop"
             UseSsl = $MailConfig.UseSSL
@@ -306,23 +322,43 @@ function Update-VeeamNutanixAhvJobs {
                 $ApiKey = $item.VeeamAhvProxyApiKey
             }
         }
-        if ($ApiKey) {
-            $VmName = $_.Name
-            $_.ProtectionStatus = Get-VeeamNutanixAhvProtectionStatus -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -ClusterId $_.ClusterUuid -VmName $VmName -VmId $_.VmUuid
-            if ($_.ProtectionStatus -eq $false) {
-                $JobName = $_.ClusterName + '-' + $JobNamePrefix + $_.DataProtectionCategory
-                Write-Verbose "Add VM $VmName to $JobName"
-                Add-VmToVeeamNutanixAhvJob -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -JobName $JobName -ClusterId $_.ClusterUuid -VmId $_.VmUuid -Verbose
-                # Update-VeeamNutanixAhv -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -ClusterId $_.ClusterUuid
+        if ($_.VeeamAhvProxyIp) {
+            if ($ApiKey) {
+                $VmName = $_.Name
+                Write-Verbose "--- Processing VM $VmName ---"
+                if ($ignoreProtectionStatus -eq $false) {
+                    $_.ProtectionStatus = Get-VeeamNutanixAhvProtectionStatus -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -VmName $VmName -VmId $_.VmUuid
+                }
+                else {
+                    $_.ProtectionStatus = $false
+                }
+                if ($_.ProtectionStatus -eq $false) {
+                    $JobName = $_.ClusterName + '-' + $JobNamePrefix + $_.DataProtectionCategory
+                    Write-Verbose "Add VM $VmName to $JobName"
+                    $_.ActionStatus = "added to job $JobName"
+                    Add-VmToVeeamNutanixAhvJob -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -JobName $JobName -ClusterId $_.ClusterUuid -VmId $_.VmUuid -Verbose
+                    # Update-VeeamNutanixAhv -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -ClusterId $_.ClusterUuid
+                }
+            }
+            else {
+                throw 'API key to access the Veeam proxy is empty.'
             }
         }
         else {
-            throw 'The API key to access the Veeam proxy is empty.'
+            throw 'No Veeam Proxy defined for VM.'
         }
     }
 
-    # Logout
-    
+    # 
+    $ChangedVms = $VmsToProcess | Where-Object{$null -ne $_.ActionStatus} | Select-Object Name,ClusterName,ActionStatus
+    $ChangedVms | Sort-Object ClusterName,Name | Format-Table -AutoSize
+    Write-Host $ChangedVms.count "changes"
+
+    if ($MailNotification) {
+        [String]$MailBody = $ChangedVms | Select-Object ClusterName,Name | Sort-Object ClusterName,Name | ConvertTo-Html -PreContent $MailStyle     
+        $MailParams.Subject = "Veeam job assigment modified"
+        Send-MailMessage @MailParams
+    }
 
     #endregion
 }

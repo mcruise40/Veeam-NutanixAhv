@@ -43,10 +43,8 @@ function Add-VmToVeeamNutanixAhvJob {
                 # Find job on proxy
                 foreach ($item in $Jobs) {
                     if ($item.name -eq $JobName -and $item.mode -eq 'Backup') {
-                        Write-Verbose 'Found Veeam job on proxy'
+                        Write-Verbose "Found Veeam job $JobName on proxy"
                         $RestUriJobSettings = 'https://' + $ProxyIp + '/api/v4/jobs/' + $item.id + '/settings'
-                        # $RestUriJobDisable  = 'https://' + $ProxyIp + '/api/v4/jobs/' + $item.id + '/disable'
-                        # $RestUriJobEnable   = 'https://' + $ProxyIp + '/api/v4/jobs/' + $item.id + '/enable'
                     }
                 }
 
@@ -56,7 +54,7 @@ function Add-VmToVeeamNutanixAhvJob {
                 }
                 
                 $JobSettings = Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriJobSettings -Authentication Bearer -Token $ApiKey
-                if (-not $VmId -in $JobSettings.vmIds) {
+                if (-not ($VmId -in $JobSettings.vmIds)) {
                     Write-Verbose "Add VM with ID $VmId"
                     $JobSettings.vmIds += $VmId
                     
@@ -77,11 +75,6 @@ function Add-VmToVeeamNutanixAhvJob {
                     Write-Verbose "VM is already included in the job"
                     $ret = $null
                 }
-
-                # Disable and re-enable job
-                # Invoke-WebRequest -Method 'POST' -SkipCertificateCheck -Uri $RestUriJobDisable -Authentication Bearer -Token $ApiKey
-                # Invoke-WebRequest -Method 'POST' -SkipCertificateCheck -Uri $RestUriJobEnable -Authentication Bearer -Token $ApiKey
-                
                 
             }catch{
                 Write-Warning $('ScriptName:', $($_.InvocationInfo.ScriptName), 'LineNumber:', $($_.InvocationInfo.ScriptLineNumber), 'Message:', $($_.Exception.Message) -Join ' ')
