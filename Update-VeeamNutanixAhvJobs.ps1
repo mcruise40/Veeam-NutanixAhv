@@ -358,10 +358,17 @@ function Update-VeeamNutanixAhvJobs {
     $ChangedVms | Sort-Object ClusterName,Name | Format-Table -AutoSize
     Write-Host $ChangedVms.count "changes"
 
-    if ($MailNotification) {
-        [String]$MailBody = $ChangedVms | Select-Object ClusterName,Name | Sort-Object ClusterName,Name | ConvertTo-Html -PreContent $MailStyle     
-        $MailParams.Subject = "Veeam job assigment modified"
-        Send-MailMessage @MailParams
+    if ($ChangedVms.count -ge 0) {
+        if ($MailNotification) {
+            if ($MailAuth) {
+                [String]$MailBody = $ChangedVms | Select-Object ClusterName,Name | Sort-Object ClusterName,Name | ConvertTo-Html -PreContent $MailStyle     
+                $MailParams.Subject = "Veeam job assigment modified"
+                Send-MailMessage @MailParams -Credential $CredMailAuth -Verbose
+            }
+            else {
+                Send-MailMessage @MailParams
+            }
+        }
     }
 
     #endregion
