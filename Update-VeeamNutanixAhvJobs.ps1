@@ -193,7 +193,7 @@ function Update-VeeamNutanixAhvJobs {
     . .\Get-VeeamAhvProxyToken.ps1
     . .\Get-VeeamNutanixAhvProtectionStatus
     . .\Add-VmToVeeamNutanixAhvJob.ps1
-    . .\Update-VeeamNutanixAhv.ps1
+    . .\Get-VmJobMembership.ps1
 
     #endregion
 
@@ -251,7 +251,7 @@ function Update-VeeamNutanixAhvJobs {
 
     # Get VMs without data protection category applied
     $VmsMissingCategory = $NutanixVmInfo | Where-Object {$null -eq $_.DataProtectionCategory}
-    $VmsMissingCategory | Sort-Object ClusterName,Name | Format-Table -AutoSize
+    $VmsMissingCategory | Select-Object ClusterName,Name | Sort-Object ClusterName,Name | Format-Table -AutoSize
 
     # Send mail notification with VMs without data protection category applied
     if ($MailNotification) {
@@ -302,14 +302,14 @@ function Update-VeeamNutanixAhvJobs {
     # Filter VMs with data protection category applied
     $VmsToProcess = $NutanixVmInfo | Where-Object {$null -ne $_.DataProtectionCategory}
 
-    # Add Veeam Proxy IP to $NutanixVmInfo Array
+    # Add Veeam Proxy IP to $NutanixVmInfo array
     $VmsToProcess | ForEach-Object {
         foreach ($item in $ProxyMappingList) {
             if ($item.ClusterName -eq $_.ClusterName) { $_.VeeamAhvProxyIp = $item.VeeamAhvProxyIp }
         }
     }
 
-    # Get Veeam Access Token
+    # Get Veeam access token
     $ProxyMappingList | Add-Member -NotePropertyName 'VeeamAhvProxyApiKey' -NotePropertyValue $null
     $ProxyMappingList | ForEach-Object {
         $_.VeeamAhvProxyApiKey = Get-VeeamAhvProxyToken -ProxyIp $_.VeeamAhvProxyIp -Username $CredVeeamAhvProxy.UserName -Password $CredVeeamAhvProxy.Password
@@ -327,17 +327,21 @@ function Update-VeeamNutanixAhvJobs {
                 $VmName = $_.Name
                 Write-Verbose "--- Processing VM $VmName ---"
                 if ($ignoreProtectionStatus -eq $false) {
+                    # Get protection status from Veeam proxy
                     $_.ProtectionStatus = Get-VeeamNutanixAhvProtectionStatus -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -VmName $VmName -VmId $_.VmUuid
                 }
                 else {
+                    # Set protection status to false, if protection status should be ignored
                     $_.ProtectionStatus = $false
                 }
-                if ($_.ProtectionStatus -eq $false) {
+                # Check if VM is already a member of any backup job
+                $VmJobId = Get-VmJobMembership -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -VmName $VmName -VmId $_.VmUuid
+
+                if (($_.ProtectionStatus -eq $false) -and ($null -eq $VmJobId)) {
                     $JobName = $_.ClusterName + '-' + $JobNamePrefix + $_.DataProtectionCategory
                     Write-Verbose "Add VM $VmName to $JobName"
                     $_.ActionStatus = "added to job $JobName"
                     Add-VmToVeeamNutanixAhvJob -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -JobName $JobName -ClusterId $_.ClusterUuid -VmId $_.VmUuid -Verbose
-                    # Update-VeeamNutanixAhv -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -ClusterId $_.ClusterUuid
                 }
             }
             else {
@@ -345,12 +349,12 @@ function Update-VeeamNutanixAhvJobs {
             }
         }
         else {
-            throw 'No Veeam Proxy defined for VM.'
+            throw 'No Veeam Proxy found in proxy mapping list for VM'
         }
     }
 
     # 
-    $ChangedVms = $VmsToProcess | Where-Object{$null -ne $_.ActionStatus} | Select-Object Name,ClusterName,ActionStatus
+    $ChangedVms = $VmsToProcess | Where-Object {$null -ne $_.ActionStatus} | Select-Object Name,ClusterName,ActionStatus
     $ChangedVms | Sort-Object ClusterName,Name | Format-Table -AutoSize
     Write-Host $ChangedVms.count "changes"
 

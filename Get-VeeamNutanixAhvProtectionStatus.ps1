@@ -1,11 +1,18 @@
 function Get-VeeamNutanixAhvProtectionStatus {
     <#
     .SYNOPSIS
-        Retrieve jobs from a Veeam proxy for Nutanix AHV and check if VM is already protected in any backup job
+        Retrieve jobs from a Veeam proxy for Nutanix AHV.
     .DESCRIPTION
-        A longer description of the function, its purpose, common use cases, etc.
-    .PARAMETER InputObject
-        Specify the input of this parameter.
+        The Get-VeeamNutanixAhvProtectionStatus function is designed to interact with a Veeam proxy for Nutanix AHV clusters. The main purpose of this script is to determine whether a specific virtual machine, identified by its VmId, is marked as protected or not in the dashboard
+    .PARAMETER ProxyIp
+    The IP address of the Veeam proxy server. This is used to construct the API endpoint URLs for requests. It is mandatory to provide this IP address for the script to correctly connect to the desired Veeam proxy.
+    .PARAMETER ApiKey
+    The API key used for authentication when communicating with the Veeam proxy server's API. This is provided as a SecureString to ensure the confidentiality of the API key during script execution. The key allows the script to fetch data about protected and unprotected VMs.
+    .PARAMETER VmName
+    The human-readable name of the virtual machine that you wish to check the protection status for. The script uses the VmId primarily for determining protection status, but the VmName is used for providing context in verbose outputs.
+    .PARAMETER VmId
+    A unique identifier for the virtual machine. This ID is crucial as it's used to determine whether the VM is in the list of protected or unprotected VMs. Always ensure that the correct VM ID is provided to get accurate results.
+
     .NOTES
         Information or caveats about the function e.g. 'This function is not supported in Linux'
     .EXAMPLE
@@ -34,27 +41,24 @@ function Get-VeeamNutanixAhvProtectionStatus {
         foreach($item in $PSBoundParameters.keys){ $params = "$($params) -$($item) $($PSBoundParameters[$item])" }
         if ($PSCmdlet.ShouldProcess($params.Trim())){
             try{
-
                 $resultLimit = 9999
-                $vmFoundInJob = $false
 
-                # Check if VM is already listet in Veeam backup job
-                $RestUriJobSettings = "https://$ProxyIp/api/v4/jobs?limit=$resultLimit"
-                $JobSettings = (Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriJobSettings -Authentication Bearer -Token $ApiKey).results
+                $RestUriProtectedVms = "https://$ProxyIp/api/v4/dashboard/protectedVmsInCluster?offset=0&limit=$resultLimit"
+                $ProtectedVms   = (Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriProtectedVms -Authentication Bearer -Token $ApiKey).results
 
-                $JobSettings.settings | ForEach-Object {
-                    if ($VmId -in $_.vmIds) {
-                        $JobName = $_.name
-                        Write-Verbose "VM $VmName is already protected in backup job $JobName"
-                        $vmFoundInJob = $true
-                        $ret = $_.id
-                        break
-                    }
+                $RestUriUnprotectedVms = "https://$ProxyIp/api/v4/dashboard/unprotectedVmsInCluster?offset=0&limit=$resultLimit"
+                $UnprotectedVms = (Invoke-RestMethod -Method 'GET' -SkipCertificateCheck -Uri $RestUriUnprotectedVms -Authentication Bearer -Token $ApiKey).results
+
+                if ($VmId -in $ProtectedVms.id) {
+                    Write-Verbose "VM $VmName is already marked as protected"
+                    $ret = $true
                 }
-                    
-                if (-not $vmFoundInJob) {
-                    Write-Verbose "VM $VmName was not found in any backup job"
+                elseif ($VmId -in $UnprotectedVms.id) {
+                    Write-Verbose "VM $VmName is not marked as proteceted"
                     $ret = $false
+                }
+                else {
+                    Throw 'VM not found!'
                 }
 
             }catch{
