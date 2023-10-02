@@ -217,10 +217,10 @@ function Update-VeeamNutanixAhvJobs {
         $SecretStorePassword = Import-CliXml -Path $SecretStoreXmlPath
         Unlock-SecretStore -Password $SecretStorePassword
         if ($PrismCentralCred) {
-            $CredPrismCentral  = Get-Secret -Vault $SecretStoreCred -Name $PrismCentralCred
+            $CredPrismCentral  = Get-Secret -Vault $SecretStoreName -Name $PrismCentralCred
         }
         if ($VeeamAhvProxyCred) {
-            $CredVeeamAhvProxy = Get-Secret -Vault $SecretStoreCred -Name $VeeamAhvProxyCred
+            $CredVeeamAhvProxy = Get-Secret -Vault $SecretStoreName -Name $VeeamAhvProxyCred
         }
     }
 
