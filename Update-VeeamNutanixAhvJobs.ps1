@@ -358,7 +358,7 @@ function Update-VeeamNutanixAhvJobs {
     $ChangedVms | Sort-Object ClusterName,Name | Format-Table -AutoSize
     Write-Host $ChangedVms.count "changes"
 
-    if ($ChangedVms.count -ge 0) {
+    if ($ChangedVms.count -gt 0) {
         if ($MailNotification) {
             if ($MailAuth) {
                 [String]$MailBody = $ChangedVms | Select-Object ClusterName,Name | Sort-Object ClusterName,Name | ConvertTo-Html -PreContent $MailStyle     
