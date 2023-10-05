@@ -182,7 +182,13 @@ function Update-VeeamNutanixAhvJobs {
             Mandatory = $false,
             HelpMessage = 'Enter a prefix to attend to the job name in Veeam Proxy for Nutanix AHV'
         )]
-        [String]$JobNamePrefix
+        [String]$JobNamePrefix,
+
+        [Parameter(
+            Mandatory = $false,
+            HelpMessage = 'Enter a name for the category value to ignore for backup job assignment'
+        )]
+        [String]$CategoryValueToIgnore
     )
     #endregion
 
@@ -194,6 +200,8 @@ function Update-VeeamNutanixAhvJobs {
     . .\Get-VeeamNutanixAhvProtectionStatus
     . .\Add-VmToVeeamNutanixAhvJob.ps1
     . .\Get-VmJobMembership.ps1
+    . .\Get-VeeamNutanixAhvJobName.ps1
+    . .\Remove-VmFromVeeamNutanixAhvJob.ps1
 
     #endregion
 
@@ -251,6 +259,7 @@ function Update-VeeamNutanixAhvJobs {
 
     # Get VMs without data protection category applied
     $VmsMissingCategory = $NutanixVmInfo | Where-Object {$null -eq $_.DataProtectionCategory}
+    Write-Output "VMs without backup category assigned:"
     $VmsMissingCategory | Select-Object ClusterName,Name | Sort-Object ClusterName,Name | Format-Table -AutoSize
 
     # Send mail notification with VMs without data protection category applied
@@ -300,7 +309,7 @@ function Update-VeeamNutanixAhvJobs {
     }
 
     # Filter VMs with data protection category applied
-    $VmsToProcess = $NutanixVmInfo | Where-Object {$null -ne $_.DataProtectionCategory}
+    $VmsToProcess = $NutanixVmInfo | Where-Object {-not ([string]::IsNullOrEmpty($_.DataProtectionCategory) -or ($_.DataProtectionCategory -eq $CategoryValueToIgnore))}
 
     # Add Veeam Proxy IP to $NutanixVmInfo array
     $VmsToProcess | ForEach-Object {
@@ -325,6 +334,7 @@ function Update-VeeamNutanixAhvJobs {
         if ($_.VeeamAhvProxyIp) {
             if ($ApiKey) {
                 $VmName = $_.Name
+                $JobName = $_.ClusterName + '-' + $JobNamePrefix + $_.DataProtectionCategory
                 Write-Verbose "--- Processing VM $VmName ---"
                 if ($ignoreProtectionStatus -eq $false) {
                     # Get protection status from Veeam proxy
@@ -337,11 +347,30 @@ function Update-VeeamNutanixAhvJobs {
                 # Check if VM is already a member of any backup job
                 $VmJobId = Get-VmJobMembership -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -VmName $VmName -VmId $_.VmUuid
 
+                
+                if ($VmJobId) {
+                    $VmJobName = Get-VeeamNutanixAhvJobName -JobId $VmJobId -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey 
+                    if ($JobName -ne $VmJobName) {
+                        # Remove VM from job
+                        $RemoveResult = Remove-VmFromVeeamNutanixAhvJob -JobId $VmJobId -ClusterId $_.ClusterUuid -VmId $_.VmUuid -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey
+                        # Set protection status to false, if removing from job was succesfully
+                        if ($RemoveResult) {
+                            $_.ProtectionStatus = $false
+                            $VmJobId = $null
+                        }
+                    }
+                }
+
                 if (($_.ProtectionStatus -eq $false) -and ($null -eq $VmJobId)) {
-                    $JobName = $_.ClusterName + '-' + $JobNamePrefix + $_.DataProtectionCategory
                     Write-Verbose "Add VM $VmName to $JobName"
-                    $_.ActionStatus = "added to job $JobName"
-                    Add-VmToVeeamNutanixAhvJob -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -JobName $JobName -ClusterId $_.ClusterUuid -VmId $_.VmUuid -Verbose
+                    $AddResult = Add-VmToVeeamNutanixAhvJob -ProxyIp $_.VeeamAhvProxyIp -ApiKey $ApiKey -JobName $JobName -ClusterId $_.ClusterUuid -VmId $_.VmUuid
+                    # set action status, if adding to job was successfully
+                    if ($AddResult) {
+                        $_.ActionStatus = "added to job $JobName"
+                    }
+                    else {
+                        throw "Unable to add VM to job"
+                    }
                 }
             }
             else {
@@ -361,7 +390,7 @@ function Update-VeeamNutanixAhvJobs {
     if ($ChangedVms.count -gt 0) {
         if ($MailNotification) {
             if ($MailAuth) {
-                [String]$MailBody = $ChangedVms | Select-Object ClusterName,Name | Sort-Object ClusterName,Name | ConvertTo-Html -PreContent $MailStyle     
+                [String]$MailBody = $ChangedVms | Select-Object ClusterName,Name,ActionStatus | Sort-Object ClusterName,Name | ConvertTo-Html -PreContent $MailStyle     
                 $MailParams.Subject = "Veeam job assigment modified"
                 Send-MailMessage @MailParams -Credential $CredMailAuth -Verbose
             }
