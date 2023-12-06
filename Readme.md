@@ -67,7 +67,24 @@ Set-Secret -Name 'SmtpServer' -Secret (Get-Credential someone@somewhere.com)
 
 ## Usage example
 
-Update-VeeamNutanixAhvJobs -PrismCentralIp '10.30.0.5' -PrismCentralCred 'PrismCentral' -ProxyMappingFilePath '.\ProxyMapping.csv' -VeeamAhvProxyCred 'VeeamNutanixAhv' -SecretStoreCred 'SecretStore' -ProtectionPolicyCategoryName 'DataProtection' -JobNamePrefix '-PC-' -MailConfigPath '.\mailconf.json'
+```PowerShell
+@params = @{
+    PrismCentralIp               = "10.30.0.5"
+    PrismCentralCred             = "PrismCentral"
+    ProxyMappingFilePath         = ".\ProxyMapping.csv"
+    VeeamAhvProxyCred            = "VeeamNutanixAhv"
+    SecretStoreName              = "SecretStore"
+    SecretStoreXmlPath           = ".\passwd.xml"
+    ProtectionPolicyCategoryName = "DataProtection"
+    JobNamePrefix                = "-PC-"
+    MailNotification             = $true
+    MailConfigPath               = ".\mailconf.json"
+    excludedVmsPrefix            = 'Frame'
+    ignoreProtectionStatus       = $true
+}
+
+Update-VeeamNutanixAhvJobs @params
+```
 
 ## Release History
 
