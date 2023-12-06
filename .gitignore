@@ -11,6 +11,9 @@
 # Local History for Visual Studio Code
 .history/
 
+logs/*
+tests/*
+
 # Built Visual Studio Code Extensions
 *.vsix
 

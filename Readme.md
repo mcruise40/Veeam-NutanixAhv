@@ -10,8 +10,8 @@ Create a new category in Prism Central with names for the backup jobs as values.
 
 ### Backup jobs
 Create backup jobs in Veeam Proxy with the schema {{Nutanix ClusterName}}-{{PC category value}}.
-If needed, it's poosible to define an additonal custom name between the cluster name and the category value.
-The name is case insensitive.
+If needed, it's possible to define an additonal custom string between the cluster name and the category value with the parameter -JobNamePrefix.
+The name of the backup jobs are case insensitive.
 
 ### Proxy mapping list
 Create a CSV with columns cluster name and Veeam Proxy IP. An example is avaiable in the repository.
