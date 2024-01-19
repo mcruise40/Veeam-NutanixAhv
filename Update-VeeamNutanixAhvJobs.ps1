@@ -254,7 +254,7 @@ function Update-VeeamNutanixAhvJobs {
     $VmsMissingCategory | Select-Object ClusterName,Name | Sort-Object ClusterName,Name | Format-Table -AutoSize
 
     # Send mail notification with VMs without data protection category applied
-    if ($MailNotification) {
+    if ($MailNotification -and $VmsMissingCategory.count -gt 0) {
         # Get mail config from file
         $MailConfig = @(Get-Content -Path $MailConfigPath | ConvertFrom-Json)
         [String]$MailStyle = Get-Content -Path $MailStylePath
