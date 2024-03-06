@@ -1,4 +1,4 @@
-# Veeam for Nutanix AHV to work with Prsim Central categories
+# Veeam for Nutanix AHV to work with Prism Central categories
 > Powershell script to use categories from Nutanix Prism Central to assign VMs to backup jobs in Veeam for Nutanix AHV
 
 The script will update jobs in Veeam Proxy for Nutanix AHV based on categories defined in Prism Central.
